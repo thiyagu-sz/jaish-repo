@@ -1,0 +1,25 @@
+{
+  "name": "research-ai",
+  "version": "1.0.0",
+  "description": "ResearchAI - a lightweight AI-powered research discovery assistant (MVP prototype).",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "keywords": [
+    "research",
+    "openalex",
+    "llm",
+    "summarization",
+    "research-gap"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1"
+  }
+}
