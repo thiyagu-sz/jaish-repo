@@ -516,8 +516,34 @@ h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 12px; }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-.insight-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.insight-head h4 { margin: 0; color: var(--accent-dark); font-size: 0.86rem; }
+.insight-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.insight-head h4 { margin: 0; color: var(--accent-dark); font-size: 0.86rem; margin-right: 2px; }
+
+/* Which agent answered, and which model it ran on. */
+.agent-chip,
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.agent-chip {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border: 1px solid #dbe1ff;
+}
+
+.model-chip {
+  background: var(--bg-tint);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+}
 
 .insight-body { font-size: 0.93rem; color: var(--ink-soft); margin: 0; }
 .insight-body p { margin: 0 0 8px; }

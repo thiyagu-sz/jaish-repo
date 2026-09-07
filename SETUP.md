@@ -106,6 +106,44 @@ their faster "polite pool", which they appreciate but do not require.
 > subscription. You need credit on the account for AI responses to work. If the key is
 > missing, invalid, or out of credit, the app falls back to Demo Mode instead of crashing.
 
+### Using a different model for each agent (optional)
+
+The three AI buttons are handled by three separate **agents**. By default they all use
+the same model, but you can give each one its own.
+
+| Button | Agent | Setting |
+| --- | --- | --- |
+| Summarize Paper | Summarization Agent | `SUMMARY_MODEL` |
+| Find Research Gaps | Gap Analysis Agent | `GAP_MODEL` |
+| Generate Research Ideas | Innovation Agent | `IDEA_MODEL` |
+
+Example `.env`:
+
+```
+OPENAI_API_KEY=your-key
+OPENAI_MODEL=gpt-4o-mini
+
+SUMMARY_MODEL=gpt-4o
+GAP_MODEL=o4-mini
+IDEA_MODEL=gpt-4.1
+```
+
+Leave any of them blank and that agent simply uses `OPENAI_MODEL`. After the response
+appears, the panel shows which agent answered and which model it used, so you can check
+your settings are working.
+
+**Advanced:** an agent can also use a completely different provider, as long as that
+provider accepts OpenAI-style requests (Groq, Together, OpenRouter, a local Ollama, and
+so on). Add a base URL and key with the same prefix:
+
+```
+IDEA_BASE_URL=https://api.groq.com/openai/v1
+IDEA_API_KEY=your-groq-key
+IDEA_MODEL=llama-3.3-70b-versatile
+```
+
+Remember to restart the server after any `.env` change.
+
 ### Keeping keys safe
 
 - Never paste a key into `index.html`, any file in `public/js/`, the README, or a chat message.
@@ -121,13 +159,20 @@ their faster "polite pool", which they appreciate but do not require.
 npm start
 ```
 
-You should see:
+You should see the address, followed by each agent and the model it will use:
 
 ```
 ResearchAI running at http://localhost:3000
+
+Agents:
+  Summarization Agent    gpt-4o-mini      Demo Mode (no key)
+  Gap Analysis Agent     gpt-4o-mini      Demo Mode (no key)
+  Innovation Agent       gpt-4o-mini      Demo Mode (no key)
+
+Add OPENAI_API_KEY to .env to enable real AI responses.
 ```
 
-If no key is configured you will also see a reminder that AI insights will use Demo Mode.
+That is expected with an empty `.env` — the app still works fully.
 
 ---
 
@@ -151,11 +196,14 @@ Demo Mode is automatic. There is no switch to flip.
 
 | Situation | What happens |
 | --- | --- |
-| No `OPENAI_API_KEY` | AI responses use sample text, badged **Demo Mode** |
+| No `OPENAI_API_KEY` | All three agents use sample text, badged **Demo Mode** |
 | Invalid key or no credit | Same — falls back to sample text, no crash |
 | Valid `OPENAI_API_KEY` | Real AI responses, no badge |
+| Only one agent has a key | That agent runs live; the other two stay in Demo Mode |
 | All paper sources fail | Six sample papers, with a banner explaining why |
 | Any source responds | Real search results |
+
+Demo Mode is decided **per agent**, so you can enable one agent at a time while testing.
 
 **To turn demo mode off:** add a working `OPENAI_API_KEY` to `.env` and restart the
 server (Ctrl + C, then `npm start`).
@@ -164,6 +212,16 @@ server (Ctrl + C, then `npm start`).
 comment out `OPENAI_API_KEY` in `.env` and restart.
 
 > The server reads `.env` only at startup. **Always restart after editing it.**
+
+When the server starts it prints each agent and its model, so you can confirm your
+settings straight away:
+
+```
+Agents:
+  Summarization Agent    gpt-4o           live
+  Gap Analysis Agent     o4-mini          live
+  Innovation Agent       gpt-4.1          live
+```
 
 ---
 
@@ -211,3 +269,5 @@ git push -u origin main
 | Search always shows demo papers | Your network may be blocking the scholarly APIs, or you are rate-limited. Wait a minute and retry. |
 | Semantic Scholar returns nothing | Without a key it is often rate-limited (HTTP 429). Use the **All** or **OpenAlex** source filter. |
 | Edited `.env` but nothing changed | Restart the server. `.env` is read only at startup. |
+| A per-agent model is being ignored | Check the spelling of the prefix (`SUMMARY_`, `GAP_`, `IDEA_`) and restart. The startup log prints the model each agent resolved to. |
+| One agent works, another says Demo Mode | That agent has no key. Either set `OPENAI_API_KEY` for all, or give it its own `*_API_KEY`. |

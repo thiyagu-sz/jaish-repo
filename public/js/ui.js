@@ -11,6 +11,14 @@ const UI = (() => {
     idea: 'Exploring research directions...'
   };
 
+  // Mirrors the agent names in server/services/aiService.js, so the loading
+  // state can name the agent before the response arrives.
+  const AGENT_NAMES = {
+    summary: 'Summarization Agent',
+    gap: 'Gap Analysis Agent',
+    idea: 'Innovation Agent'
+  };
+
   /** Always escape API text before putting it in innerHTML. */
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -140,18 +148,30 @@ const UI = (() => {
   }
 
   function insightLoading(type) {
+    const agent = AGENT_NAMES[type];
     return `
       <div class="insight" data-insight-type="${type}">
-        <div class="insight-head"><h4>${escapeHtml(LOADING_TEXT[type] || 'Working...')}</h4></div>
+        <div class="insight-head">
+          <h4>${escapeHtml(LOADING_TEXT[type] || 'Working...')}</h4>
+          ${agent ? `<span class="agent-chip">${escapeHtml(agent)}</span>` : ''}
+        </div>
         <p class="insight-body"><span class="spinner"></span></p>
       </div>`;
   }
 
   function insightResult(result) {
+    // Shows which agent answered and which model it used, so the multi-agent
+    // setup is visible rather than hidden in config.
+    const agent = result.agent ? `<span class="agent-chip">${escapeHtml(result.agent)}</span>` : '';
+    const model = result.model ? `<span class="model-chip">${escapeHtml(result.model)}</span>` : '';
     const demo = result.demoMode ? '<span class="badge-demo">Demo Mode</span>' : '';
+
     return `
       <div class="insight" data-insight-type="${escapeHtml(result.type)}">
-        <div class="insight-head"><h4>${escapeHtml(result.label)}</h4>${demo}</div>
+        <div class="insight-head">
+          <h4>${escapeHtml(result.label)}</h4>
+          ${agent}${model}${demo}
+        </div>
         <div class="insight-body">${formatInsight(result.text)}</div>
       </div>`;
   }

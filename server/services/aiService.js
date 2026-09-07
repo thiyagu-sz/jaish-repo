@@ -1,35 +1,85 @@
 /**
- * AI insight generation: paper summary, research gaps, research ideas.
- * Falls back to a written demo response when no API key is configured or the
- * provider call fails, so the app is always demonstrable.
+ * AI insight generation, organised as three small "agents".
+ *
+ * Each agent has its own prompt, temperature and model, and can even point at a
+ * different provider. This is the simple, single-process ancestor of the
+ * multi-agent architecture described in the project specification.
+ *
+ * Model resolution per agent (first value that is set wins):
+ *   <PREFIX>_MODEL     ->  OPENAI_MODEL     ->  'gpt-4o-mini'
+ *   <PREFIX>_BASE_URL  ->  OPENAI_BASE_URL  ->  OpenAI
+ *   <PREFIX>_API_KEY   ->  OPENAI_API_KEY   ->  (none, so Demo Mode)
+ *
+ * Falls back to written demo text when a key is missing or a call fails, so the
+ * app is always demonstrable.
  */
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const BASE_URL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 const REQUEST_TIMEOUT_MS = 30000;
 
-const PROMPTS = {
-  summary:
-    'Summarize this research paper for a university student. Give: 1. Problem, 2. Method, ' +
-    '3. Main findings, 4. Important takeaway. Use short plain-text sections with dash bullets. ' +
-    'If the abstract is missing information, say so instead of inventing details.',
-  gap:
-    'Analyze the provided paper information and identify potential research limitations, ' +
-    'unexplored areas, or possible research gaps. Give 3 to 4 dash bullets. Clearly state that ' +
-    'these are AI-generated hypotheses that should be verified against the original paper.',
-  idea:
-    'Based on the paper and its likely limitations, suggest 3 possible research directions. ' +
-    'For each, give a one-line direction and a one-line reason it is worth exploring. ' +
-    'Do not claim that they are guaranteed novel.'
+const FALLBACK_MODEL = 'gpt-4o-mini';
+const FALLBACK_BASE_URL = 'https://api.openai.com/v1';
+
+const AGENTS = {
+  summary: {
+    agent: 'Summarization Agent',
+    label: 'AI Summary',
+    env: 'SUMMARY',
+    temperature: 0.3,
+    prompt:
+      'Summarize this research paper for a university student. Give: 1. Problem, 2. Method, ' +
+      '3. Main findings, 4. Important takeaway. Use short plain-text sections with dash bullets. ' +
+      'If the abstract is missing information, say so instead of inventing details.'
+  },
+  gap: {
+    agent: 'Gap Analysis Agent',
+    label: 'Research Gap',
+    env: 'GAP',
+    temperature: 0.5,
+    prompt:
+      'Analyze the provided paper information and identify potential research limitations, ' +
+      'unexplored areas, or possible research gaps. Give 3 to 4 dash bullets. Clearly state that ' +
+      'these are AI-generated hypotheses that should be verified against the original paper.'
+  },
+  idea: {
+    agent: 'Innovation Agent',
+    label: 'Research Idea',
+    env: 'IDEA',
+    temperature: 0.7,
+    prompt:
+      'Based on the paper and its likely limitations, suggest 3 possible research directions. ' +
+      'For each, give a one-line direction and a one-line reason it is worth exploring. ' +
+      'Do not claim that they are guaranteed novel.'
+  }
 };
 
-const TYPE_LABELS = {
-  summary: 'AI Summary',
-  gap: 'Research Gap',
-  idea: 'Research Idea'
-};
+const AGENT_TYPES = Object.keys(AGENTS);
 
+/** Resolves one agent's model, endpoint and key from the environment. */
+function resolveAgent(type) {
+  const agent = AGENTS[type];
+  const prefix = agent.env;
+
+  return {
+    ...agent,
+    type,
+    model: process.env[`${prefix}_MODEL`] || process.env.OPENAI_MODEL || FALLBACK_MODEL,
+    baseUrl: process.env[`${prefix}_BASE_URL`] || process.env.OPENAI_BASE_URL || FALLBACK_BASE_URL,
+    apiKey: process.env[`${prefix}_API_KEY`] || process.env.OPENAI_API_KEY || ''
+  };
+}
+
+/** True when at least one agent has a usable key. */
 function isConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY);
+  return AGENT_TYPES.some((type) => Boolean(resolveAgent(type).apiKey));
+}
+
+/**
+ * Per-agent status for the UI. Never includes keys - only whether one is present.
+ */
+function agentStatus() {
+  return AGENT_TYPES.map((type) => {
+    const { agent, label, model } = resolveAgent(type);
+    return { type, agent, label, model, configured: Boolean(resolveAgent(type).apiKey) };
+  });
 }
 
 function buildUserMessage({ title, abstract, authors, year }) {
@@ -43,25 +93,26 @@ function buildUserMessage({ title, abstract, authors, year }) {
     .join('\n');
 }
 
-async function callLlm(type, paper) {
-  const response = await fetch(`${BASE_URL}/chat/completions`, {
+async function callLlm(config, paper) {
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      Authorization: `Bearer ${config.apiKey}`
     },
     body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      temperature: 0.4,
+      model: config.model,
+      temperature: config.temperature,
       max_tokens: 600,
       messages: [
         {
           role: 'system',
           content:
-            'You are a careful research assistant. Be concise, factual and plain-spoken. ' +
+            `You are the ${config.agent} in a research assistance system. ` +
+            'Be concise, factual and plain-spoken. ' +
             'Never invent findings that are not supported by the provided text.'
         },
-        { role: 'user', content: `${PROMPTS[type]}\n\n${buildUserMessage(paper)}` }
+        { role: 'user', content: `${config.prompt}\n\n${buildUserMessage(paper)}` }
       ]
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
@@ -120,23 +171,26 @@ function demoInsight(type, { title = 'this paper', abstract = '' }) {
 }
 
 /**
- * Generates an insight. Always resolves - callers never need a try/catch for
+ * Runs one agent. Always resolves - callers never need a try/catch for
  * "the key is missing" or "the provider is down".
  */
 async function generateInsight(type, paper) {
-  const validType = PROMPTS[type] ? type : 'summary';
+  const validType = AGENTS[type] ? type : 'summary';
+  const config = resolveAgent(validType);
 
-  if (!isConfigured()) {
-    return { type: validType, label: TYPE_LABELS[validType], text: demoInsight(validType, paper), demoMode: true };
+  const base = { type: validType, agent: config.agent, label: config.label };
+
+  if (!config.apiKey) {
+    return { ...base, model: null, text: demoInsight(validType, paper), demoMode: true };
   }
 
   try {
-    const text = await callLlm(validType, paper);
-    return { type: validType, label: TYPE_LABELS[validType], text, demoMode: false };
+    const text = await callLlm(config, paper);
+    return { ...base, model: config.model, text, demoMode: false };
   } catch (error) {
-    console.warn('[ai] falling back to demo response:', error.message);
-    return { type: validType, label: TYPE_LABELS[validType], text: demoInsight(validType, paper), demoMode: true };
+    console.warn(`[ai] ${config.agent} (${config.model}) failed, using demo response:`, error.message);
+    return { ...base, model: null, text: demoInsight(validType, paper), demoMode: true };
   }
 }
 
-module.exports = { generateInsight, isConfigured };
+module.exports = { generateInsight, isConfigured, agentStatus, AGENT_TYPES };

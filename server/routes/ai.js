@@ -1,19 +1,18 @@
 const express = require('express');
-const { generateInsight, isConfigured } = require('../services/aiService');
+const { generateInsight, isConfigured, agentStatus, AGENT_TYPES } = require('../services/aiService');
 
 const router = express.Router();
-
-const VALID_TYPES = ['summary', 'gap', 'idea'];
 
 /**
  * POST /api/ai
  * Body: { type: "summary" | "gap" | "idea", title, abstract, authors?, year? }
+ * Each type is handled by its own agent, with its own model.
  */
 router.post('/', async (req, res) => {
   const { type, title, abstract, authors, year } = req.body || {};
 
-  if (!VALID_TYPES.includes(type)) {
-    return res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(', ')}` });
+  if (!AGENT_TYPES.includes(type)) {
+    return res.status(400).json({ error: `type must be one of: ${AGENT_TYPES.join(', ')}` });
   }
   if (!title && !abstract) {
     return res.status(400).json({ error: 'A paper title or abstract is required.' });
@@ -33,9 +32,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-/** Lets the frontend show a Demo Mode badge without exposing any key. */
+/**
+ * Lets the frontend show which agent runs on which model, and whether each one
+ * is live or in Demo Mode. Never exposes an API key.
+ */
 router.get('/status', (_req, res) => {
-  res.json({ aiConfigured: isConfigured() });
+  res.json({ aiConfigured: isConfigured(), agents: agentStatus() });
 });
 
 module.exports = router;
