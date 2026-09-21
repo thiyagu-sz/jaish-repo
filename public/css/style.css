@@ -558,6 +558,501 @@ h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 12px; }
   padding-top: 12px;
 }
 
+/* ===================================================== researcher screens ==
+   Styles for the researcher search, profile, intelligence, graph and evidence
+   views. They reuse the tokens and component classes defined above.
+   ========================================================================= */
+
+.page-intro { margin-bottom: 20px; }
+.page-intro h1 { font-size: 1.6rem; margin-bottom: 6px; }
+.page-intro p { color: var(--muted); font-size: 0.93rem; margin: 0; max-width: 62ch; }
+
+.field-hint {
+  margin: 12px 0 0;
+  font-size: 0.86rem;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid #f3dcb0;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+
+.notice {
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--ink-soft);
+}
+.notice-warn { border-color: #f3dcb0; background: var(--amber-soft); color: #6b4400; }
+
+.unknown { color: var(--muted); font-style: italic; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; }
+
+/* ------------------------------------------------------------ result cards */
+.researcher-card {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.researcher-card-main { min-width: 0; flex: 1 1 320px; }
+.researcher-card .paper-title { cursor: default; }
+.researcher-card .paper-title a { color: var(--ink); }
+.researcher-card .paper-title a:hover { color: var(--accent); }
+.researcher-affiliation { margin: 0 0 8px; color: var(--ink-soft); font-size: 0.9rem; }
+
+/* ------------------------------------------------------------ error panel */
+.error-panel {
+  border: 1px solid #f0c6c6;
+  background: #fdf3f3;
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  color: #7a2727;
+}
+.error-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.error-head strong { font-size: 0.98rem; }
+.error-panel p { margin: 0 0 8px; font-size: 0.89rem; color: #8a3b3b; }
+.error-panel .btn { margin-top: 6px; }
+
+.error-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  background: #fff;
+  border: 1px solid #f0c6c6;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.error-meta { font-size: 0.78rem !important; opacity: 0.75; }
+
+/* --------------------------------------------------------- stage loading */
+.stage-list {
+  display: grid;
+  gap: 10px;
+  padding: 34px 20px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.stage-marker {
+  width: 22px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--accent);
+}
+.stage-marker .spinner { margin: 0; width: 15px; height: 15px; }
+.stage-active { color: var(--ink); font-weight: 500; }
+.stage-done { color: var(--ink-soft); }
+.stage-pending { opacity: 0.5; }
+
+/* -------------------------------------------------------- profile header */
+.profile-header {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  padding: 22px 0 26px;
+}
+.back-link { font-size: 0.86rem; color: var(--muted); display: inline-block; margin-bottom: 14px; }
+.back-link:hover { color: var(--accent); }
+
+.profile-header h1 { font-size: 1.85rem; margin-bottom: 10px; }
+.profile-affiliations { margin-top: 0; margin-bottom: 4px; }
+
+.metric-row { display: flex; flex-wrap: wrap; gap: 28px; margin: 18px 0 14px; }
+.metric { display: flex; flex-direction: column; }
+.metric-value { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; }
+.metric-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+
+.provenance-line { margin: 0; font-size: 0.83rem; color: var(--muted); }
+
+/* ------------------------------------------------------------------ tabs */
+.tab-bar {
+  position: sticky;
+  top: 66px;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.tab-bar-inner { display: flex; gap: 4px; overflow-x: auto; }
+
+.tab {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 14px 14px 12px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-panel { display: none; padding-bottom: 70px; }
+.tab-panel.active { display: block; }
+
+.profile-main { padding-top: 26px; }
+
+.panel-head {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.panel-head h2 { font-size: 1.2rem; margin-bottom: 4px; }
+.panel-sub { color: var(--muted); font-size: 0.88rem; margin: 0; max-width: 66ch; }
+.panel-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+.year-input {
+  font: inherit;
+  font-size: 0.86rem;
+  width: 84px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  padding: 7px 10px;
+  color: var(--ink);
+}
+.year-input:focus { outline: 2px solid rgba(59, 91, 253, 0.3); outline-offset: 1px; }
+
+.checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------- results */
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: var(--radius);
+  padding: 11px 16px;
+  margin-bottom: 22px;
+}
+.meta-warn { color: var(--amber); font-weight: 500; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.chip-static {
+  font-size: 0.76rem;
+  padding: 3px 10px;
+  border-radius: 7px;
+  background: var(--bg-tint);
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+}
+
+/* Where a statement came from: a provider record, or a model extraction. */
+.origin-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.origin-provider { background: #e7f6f0; color: #06694e; border: 1px solid #bfe5d7; }
+.origin-llm { background: var(--accent-soft); color: var(--accent-dark); border: 1px solid #dbe1ff; }
+
+/* ------------------------------------------------------ analysis sections */
+.analysis-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.analysis-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.analysis-section-head h3 { font-size: 1rem; margin: 0; }
+.section-note { font-size: 0.83rem; color: var(--muted); margin: -4px 0 12px; }
+
+.extracted-list, .plain-list, .evidence-list { list-style: none; margin: 0; padding: 0; }
+
+.extracted-item { padding: 14px 0; border-top: 1px solid var(--border); }
+.extracted-item:first-child { border-top: none; padding-top: 0; }
+
+.extracted-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.extracted-name { font-weight: 600; font-size: 0.96rem; }
+.extracted-description { margin: 6px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+
+.plain-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.plain-list li:first-child { border-top: none; }
+.muted-count { color: var(--muted); font-size: 0.82rem; white-space: nowrap; }
+
+/* ------------------------------------------------------------- confidence */
+.confidence { display: inline-flex; align-items: center; gap: 8px; }
+.confidence-track {
+  width: 74px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.confidence-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.confidence-value { font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+
+/* --------------------------------------------------------------- evidence */
+.evidence-details { margin-top: 10px; }
+.evidence-details summary {
+  cursor: pointer;
+  font-size: 0.83rem;
+  color: var(--accent);
+  list-style: none;
+}
+.evidence-details summary::-webkit-details-marker { display: none; }
+.evidence-details summary::before { content: '\25B8'; display: inline-block; margin-right: 6px; transition: transform 0.15s ease; }
+.evidence-details[open] summary::before { transform: rotate(90deg); }
+
+.evidence-item {
+  border-left: 2px solid var(--border-strong);
+  padding: 10px 0 10px 14px;
+  margin-top: 12px;
+}
+.evidence-title { font-size: 0.9rem; font-weight: 500; color: var(--ink); }
+.evidence-title:hover { color: var(--accent); }
+.evidence-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 5px 0 8px; font-size: 0.78rem; color: var(--muted); }
+
+.evidence-excerpt {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--ink-soft);
+  background: var(--bg-soft);
+  border-radius: 10px;
+  padding: 10px 13px;
+  line-height: 1.55;
+}
+
+.evidence-claims { display: grid; gap: 14px; }
+.evidence-claim {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.evidence-claim-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.evidence-claim h3 { font-size: 1rem; margin: 8px 0 4px; }
+.evidence-claim > p { color: var(--ink-soft); font-size: 0.9rem; margin: 0 0 12px; }
+
+.papers-analysed { margin-top: 20px; font-size: 0.9rem; }
+.papers-analysed summary { cursor: pointer; color: var(--accent); font-size: 0.88rem; }
+
+/* ------------------------------------------------------------------- gaps */
+.disclaimer-panel {
+  border: 1px solid #f3dcb0;
+  background: var(--amber-soft);
+  color: #6b4400;
+  border-radius: var(--radius);
+  padding: 13px 16px;
+  font-size: 0.86rem;
+  margin-bottom: 18px;
+}
+
+.gap-list { display: grid; gap: 16px; }
+.gap-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 22px 24px;
+  box-shadow: var(--shadow-sm);
+}
+.gap-head { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.gap-head h3 { font-size: 1.04rem; margin: 0 0 4px; }
+.gap-head > div { flex: 1 1 260px; min-width: 0; }
+
+.gap-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex: none;
+}
+.gap-type { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.gap-description { color: var(--ink-soft); font-size: 0.93rem; margin: 12px 0 0; }
+.gap-reasoning { color: var(--muted); font-size: 0.87rem; margin: 8px 0 0; }
+.gap-reasoning strong { color: var(--ink-soft); }
+
+/* ------------------------------------------------------------------ graph */
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+.legend-item { display: inline-flex; align-items: center; gap: 7px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-dot-llm { border: 2px dashed var(--muted); background: none; width: 12px; height: 12px; }
+.legend-count { color: var(--muted); }
+
+.graph-slot {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  overflow: hidden;
+}
+.graph-svg { display: block; background: linear-gradient(180deg, #fff, var(--bg-soft)); }
+
+.graph-edge { stroke: var(--border-strong); stroke-width: 1; }
+.graph-edge-llm { stroke: var(--purple); stroke-dasharray: 3 3; stroke-opacity: 0.55; }
+
+.graph-node { cursor: pointer; }
+.graph-node circle { transition: r 0.12s ease, fill-opacity 0.12s ease; }
+.graph-node:hover circle { fill-opacity: 1; }
+.graph-node:focus { outline: none; }
+.graph-node:focus circle, .graph-node.selected circle { stroke: var(--ink); stroke-width: 2.5; }
+
+.graph-label {
+  font-size: 11.5px;
+  fill: var(--ink-soft);
+  pointer-events: none;
+  font-family: "Inter", system-ui, sans-serif;
+  /* A thin halo keeps a label readable where it crosses an edge line. */
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* Candidate gaps carry the label a reader is scanning for. */
+.graph-label-gap {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #92400e;
+}
+
+.graph-detail {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.graph-detail-head { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+.graph-detail-head h3 { font-size: 1.05rem; margin: 8px 0 4px; }
+
+.relation-group { margin-top: 16px; }
+.relation-type {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ------------------------------------------------ analysis graph additions */
+
+/* A candidate gap is a diamond, not a circle, so it stays distinguishable in
+   greyscale, on a projector and to a colour-blind reader. */
+.graph-gap { transition: fill-opacity 0.12s ease; }
+.graph-node:hover .graph-gap { fill-opacity: 1; }
+.graph-gap-halo { pointer-events: none; }
+.graph-node:hover .graph-gap-halo { stroke-opacity: 1; }
+
+/* The edge that carries a gap its support is worth seeing at a glance. */
+.graph-edge-support {
+  stroke: #b45309;
+  stroke-width: 1.6;
+  stroke-opacity: 0.55;
+  stroke-dasharray: none;
+}
+
+.graph-node.selected .graph-gap,
+.graph-node:focus .graph-gap {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+/* Give the canvas room to breathe, and more of it on a presentation screen. */
+.graph-slot { padding: 6px 0; }
+
+@media (min-width: 1500px) {
+  .graph-slot { min-height: 620px; }
+}
+
+.badge-candidate {
+  display: inline-flex;
+  align-items: center;
+  background: var(--amber-soft);
+  color: var(--amber);
+  border: 1px solid #f3dcb0;
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.detail-confidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 12px 0 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+}
+.confidence-note { font-size: 0.78rem; color: var(--muted); max-width: 56ch; }
+
+.graph-detail .relation-group .evidence-list { margin-top: 6px; }
+.graph-detail .disclaimer-panel { margin: 12px 0 4px; }
+.graph-detail .gap-description { margin: 10px 0 0; }
+
+/* A candidate gap is a proposal, not a record, so it reads differently. */
+.graph-node[data-node^="ResearchGap"] circle { stroke-width: 2.5; }
+
+/* ------------------------------------------- researcher screen responsive */
+@media (max-width: 760px) {
+  .tab-bar { top: 0; }
+  .metric-row { gap: 20px; }
+  .panel-head { flex-direction: column; }
+  .researcher-card { align-items: flex-start; }
+  .researcher-card .btn { width: 100%; }
+  .analysis-section, .gap-card, .evidence-claim { padding: 18px; }
+}
+
 /* --------------------------------------------------------------- responsive */
 @media (max-width: 900px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }

@@ -1,18 +1,23 @@
 {
   "name": "research-ai",
   "version": "1.0.0",
-  "description": "ResearchAI - a lightweight AI-powered research discovery assistant (MVP prototype).",
+  "description": "ResearchAI - research intelligence prototype: researcher search, paper analysis, knowledge graph and evidence-backed research gaps.",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "node server/server.js"
+    "dev": "node server/server.js",
+    "test": "node --test \"tests/*.test.js\""
   },
   "keywords": [
     "research",
     "openalex",
     "llm",
     "summarization",
-    "research-gap"
+    "research-gap",
+    "knowledge-graph",
+    "rag",
+    "multi-agent",
+    "semantic-scholar"
   ],
   "license": "MIT",
   "engines": {
