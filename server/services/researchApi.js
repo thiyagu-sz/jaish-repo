@@ -8,23 +8,54 @@
  * Adding a new source = write a fetch function and register it in PROVIDERS.
  */
 const { getDemoPapers } = require('./demoData');
+const providerHealth = require('../lib/providerHealth');
 
 const REQUEST_TIMEOUT_MS = 9000;
 const RESULT_LIMIT = 20;
 
+/**
+ * A rate limit carries a code so callers can tell "slow down" apart from
+ * "broken", and a cooldown so the next search skips this source entirely
+ * rather than asking again and being refused again.
+ */
+class RateLimitedError extends Error {
+  constructor(source, retryAfterMs) {
+    super(`${providerHealth.displayName(source)} rate limited the request`);
+    this.name = 'RateLimitedError';
+    this.code = 'PROVIDER_RATE_LIMITED';
+    this.source = source;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/** Shared handling so a 429 is treated identically by every source here. */
+function handleResponse(response, source) {
+  if (response.status === 429) {
+    const retryAfterMs = providerHealth.parseRetryAfter(response.headers?.get?.('retry-after'));
+    const cooldown = providerHealth.markRateLimited(source, retryAfterMs);
+    providerHealth.logRateLimited(source, cooldown);
+    throw new RateLimitedError(source, retryAfterMs);
+  }
+
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+
+  if (providerHealth.isCoolingDown(source)) providerHealth.logRecovered(source);
+  providerHealth.markHealthy(source);
+}
+
 /** Small fetch wrapper with a timeout so a slow API can never hang the server. */
-async function fetchJson(url, headers = {}) {
+async function fetchJson(url, headers = {}, source = null) {
   const response = await fetch(url, {
     headers: { Accept: 'application/json', ...headers },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
-  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  handleResponse(response, source);
   return response.json();
 }
 
-async function fetchText(url) {
+async function fetchText(url, source = null) {
   const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  handleResponse(response, source);
   return response.text();
 }
 
@@ -54,7 +85,7 @@ async function searchOpenAlex(query, { year } = {}) {
   // OpenAlex asks for a contact email to join their faster "polite pool".
   if (process.env.CONTACT_EMAIL) params.set('mailto', process.env.CONTACT_EMAIL);
 
-  const data = await fetchJson(`https://api.openalex.org/works?${params.toString()}`);
+  const data = await fetchJson(`https://api.openalex.org/works?${params.toString()}`, {}, 'openalex');
 
   return (data.results || []).map((work) => ({
     id: work.id,
@@ -83,7 +114,8 @@ async function searchSemanticScholar(query, { year } = {}) {
 
   const data = await fetchJson(
     `https://api.semanticscholar.org/graph/v1/paper/search?${params.toString()}`,
-    headers
+    headers,
+    'semanticscholar'
   );
 
   return (data.data || []).map((paper) => ({
@@ -111,7 +143,7 @@ async function searchArxiv(query) {
     start: '0',
     max_results: String(RESULT_LIMIT)
   });
-  const xml = await fetchText(`https://export.arxiv.org/api/query?${params.toString()}`);
+  const xml = await fetchText(`https://export.arxiv.org/api/query?${params.toString()}`, 'arxiv');
 
   // The arXiv API returns Atom XML. The feed is simple and regular enough that a
   // small extractor is preferable to pulling in an XML dependency.
@@ -167,36 +199,80 @@ function applyFilters(papers, { year, sort }) {
 
 /**
  * Searches papers across one or all sources.
- * Falls back to demo data when every provider fails (offline, rate limited, etc).
+ *
+ * A source that is currently rate limited is skipped rather than asked again.
+ * If the one source the caller picked is rate limited, the others are used
+ * instead: real results from another index beat sample data.
+ *
+ * Demo data remains the last resort, only when no source can answer at all.
  */
 async function searchPapers(query, { source = 'all', year = '', sort = 'relevance' } = {}) {
   const trimmed = String(query || '').trim();
   if (!trimmed) return { papers: [], demoMode: false, source };
 
-  const selected = PROVIDERS[source] ? [source] : Object.keys(PROVIDERS);
+  const requested = PROVIDERS[source] ? [source] : Object.keys(PROVIDERS);
+  const notes = [];
 
-  const settled = await Promise.allSettled(
-    selected.map((name) => PROVIDERS[name](trimmed, { year }))
-  );
+  let selected = requested.filter((name) => {
+    if (!providerHealth.isCoolingDown(name)) return true;
+    providerHealth.logSkipped(name);
+    notes.push(`${providerHealth.displayName(name)} is rate limited`);
+    return false;
+  });
+
+  // The caller asked for one source and it is cooling down: use the rest.
+  let fallbackUsed = false;
+  if (!selected.length) {
+    selected = Object.keys(PROVIDERS).filter((name) => !providerHealth.isCoolingDown(name));
+    fallbackUsed = selected.length > 0;
+    if (fallbackUsed) providerHealth.logFallback(selected[0]);
+  }
+
+  const settled = selected.length
+    ? await Promise.allSettled(selected.map((name) => PROVIDERS[name](trimmed, { year })))
+    : [];
+
+  settled.forEach((result, index) => {
+    if (result.status !== 'rejected') return;
+
+    const name = selected[index];
+    if (result.reason?.code === 'PROVIDER_RATE_LIMITED') {
+      // providerHealth already logged the rate limit and the cooldown.
+      notes.push(`${providerHealth.displayName(name)} is rate limited`);
+    } else {
+      console.warn(`[research] ${name} failed:`, result.reason?.message || result.reason);
+      notes.push(`${providerHealth.displayName(name)} unavailable`);
+    }
+  });
 
   const papers = settled
     .filter((result) => result.status === 'fulfilled')
     .flatMap((result) => result.value);
 
-  const failedAll = settled.every((result) => result.status === 'rejected');
+  const anySucceeded = settled.some((result) => result.status === 'fulfilled');
 
-  if (failedAll) {
-    settled.forEach((result, index) => {
-      console.warn(`[research] ${selected[index]} failed:`, result.reason?.message || result.reason);
-    });
+  if (!anySucceeded) {
+    // Every source is unavailable or cooling down. Only now is sample data the
+    // best available answer, and it is labelled as such.
+    const rateLimited = selected.length === 0 ||
+      settled.every((result) => result.reason?.code === 'PROVIDER_RATE_LIMITED');
+
     return {
       papers: applyFilters(getDemoPapers(trimmed), { year: '', sort }),
       demoMode: true,
-      source
+      source,
+      rateLimited,
+      providerNotes: notes
     };
   }
 
-  return { papers: applyFilters(dedupeByTitle(papers), { year, sort }), demoMode: false, source };
+  return {
+    papers: applyFilters(dedupeByTitle(papers), { year, sort }),
+    demoMode: false,
+    source,
+    fallbackUsed: fallbackUsed || undefined,
+    providerNotes: notes
+  };
 }
 
 module.exports = { searchPapers };

@@ -1,22 +1,20 @@
 /**
  * AI insight generation, organised as three small "agents".
  *
- * Each agent has its own prompt, temperature and model, and can even point at a
- * different provider. This is the simple, single-process ancestor of the
- * multi-agent architecture described in the project specification.
+ * Each agent has its own prompt, temperature and model. This is the simple,
+ * single-process ancestor of the multi-agent architecture described in the
+ * project specification.
  *
- * Model resolution per agent (first value that is set wins):
- *   <PREFIX>_MODEL     ->  OPENAI_MODEL     ->  'gpt-4o-mini'
- *   <PREFIX>_BASE_URL  ->  OPENAI_BASE_URL  ->  OpenAI
- *   <PREFIX>_API_KEY   ->  OPENAI_API_KEY   ->  (none, so Demo Mode)
+ * All three run through OpenRouter; see services/openRouter.js. An agent uses
+ * OPENROUTER_MODEL unless it has its own <PREFIX>_MODEL override.
  *
  * Falls back to written demo text when a key is missing or a call fails, so the
- * app is always demonstrable.
+ * app is always demonstrable. That fallback is specific to these paper agents;
+ * the researcher agents in llmClient.js deliberately have none.
  */
-const REQUEST_TIMEOUT_MS = 30000;
+const openRouter = require('./openRouter');
 
-const FALLBACK_MODEL = 'gpt-4o-mini';
-const FALLBACK_BASE_URL = 'https://api.openai.com/v1';
+const REQUEST_TIMEOUT_MS = 30000;
 
 const AGENTS = {
   summary: {
@@ -56,15 +54,7 @@ const AGENT_TYPES = Object.keys(AGENTS);
 /** Resolves one agent's model, endpoint and key from the environment. */
 function resolveAgent(type) {
   const agent = AGENTS[type];
-  const prefix = agent.env;
-
-  return {
-    ...agent,
-    type,
-    model: process.env[`${prefix}_MODEL`] || process.env.OPENAI_MODEL || FALLBACK_MODEL,
-    baseUrl: process.env[`${prefix}_BASE_URL`] || process.env.OPENAI_BASE_URL || FALLBACK_BASE_URL,
-    apiKey: process.env[`${prefix}_API_KEY`] || process.env.OPENAI_API_KEY || ''
-  };
+  return { ...agent, type, ...openRouter.resolveAgent(agent.env) };
 }
 
 /** True when at least one agent has a usable key. */
@@ -77,8 +67,8 @@ function isConfigured() {
  */
 function agentStatus() {
   return AGENT_TYPES.map((type) => {
-    const { agent, label, model } = resolveAgent(type);
-    return { type, agent, label, model, configured: Boolean(resolveAgent(type).apiKey) };
+    const { agent, label, provider, model, apiKey } = resolveAgent(type);
+    return { type, agent, label, provider, model, configured: Boolean(apiKey) };
   });
 }
 
@@ -94,12 +84,9 @@ function buildUserMessage({ title, abstract, authors, year }) {
 }
 
 async function callLlm(config, paper) {
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+  const response = await fetch(openRouter.chatCompletionsUrl(), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`
-    },
+    headers: openRouter.headers(config.apiKey),
     body: JSON.stringify({
       model: config.model,
       temperature: config.temperature,
@@ -178,7 +165,7 @@ async function generateInsight(type, paper) {
   const validType = AGENTS[type] ? type : 'summary';
   const config = resolveAgent(validType);
 
-  const base = { type: validType, agent: config.agent, label: config.label };
+  const base = { type: validType, agent: config.agent, label: config.label, provider: config.provider };
 
   if (!config.apiKey) {
     return { ...base, model: null, text: demoInsight(validType, paper), demoMode: true };

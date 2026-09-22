@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Researchers - ResearchAI</title>
+  <meta name="description" content="Search for a researcher by name and open their research profile, publications, knowledge graph and evidence-backed research analysis." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-mark">RA</span>
+        ResearchAI
+      </a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="research.html">Papers</a>
+        <a href="researchers.html" class="active">Researchers</a>
+        <a href="index.html#about">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="search-bar-wrap">
+    <div class="container">
+      <div class="page-intro">
+        <h1>Find a researcher</h1>
+        <p>
+          Search a person by name, then open their profile to see their publications,
+          a knowledge graph built from provider metadata, and evidence-backed analysis
+          of their work.
+        </p>
+      </div>
+
+      <form class="search-form" id="researcher-search-form">
+        <label class="search-field compact" for="researcher-query">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="9" cy="9" r="6" /><path d="m14 14 4 4" stroke-linecap="round" />
+          </svg>
+          <input
+            id="researcher-query"
+            name="q"
+            type="text"
+            autocomplete="off"
+            placeholder="Search a researcher by name, for example Yoshua Bengio"
+            aria-label="Search a researcher by name"
+          />
+        </label>
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+
+      <p class="field-hint" id="intent-hint" hidden></p>
+    </div>
+  </section>
+
+  <main class="container">
+    <div class="results-head" id="results-head" hidden>
+      <div>
+        <h2 id="results-title">Results</h2>
+        <p class="results-count" id="results-count"></p>
+      </div>
+      <span class="source-pill" id="source-pill" hidden></span>
+    </div>
+
+    <div id="notice-slot"></div>
+    <div id="researcher-results" class="paper-list" aria-live="polite"></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>ResearchAI - An AI-powered research discovery assistant.</span>
+      <span>Prototype for academic use. Verify all results independently.</span>
+    </div>
+  </footer>
+
+  <script src="js/researchApi.js"></script>
+  <script src="js/researchUI.js"></script>
+  <script src="js/researchers.js"></script>
+</body>
+</html>

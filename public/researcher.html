@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Researcher profile - ResearchAI</title>
+  <meta name="description" content="Researcher profile: publications, research intelligence, knowledge graph and the evidence behind every generated insight." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-mark">RA</span>
+        ResearchAI
+      </a>
+      <nav class="nav">
+        <a href="index.html">Home</a>
+        <a href="research.html">Papers</a>
+        <a href="researchers.html" class="active">Researchers</a>
+        <a href="index.html#about">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ------------------------------------------------------------- profile -->
+  <section class="profile-header">
+    <div class="container">
+      <a class="back-link" href="researchers.html">&larr; Back to researcher search</a>
+      <div id="profile-header-slot">
+        <div class="state"><span class="spinner"></span><strong>Loading researcher profile...</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- tabs -->
+  <nav class="tab-bar" aria-label="Researcher sections">
+    <div class="container tab-bar-inner">
+      <button class="tab active" type="button" data-tab="publications">Publications</button>
+      <button class="tab" type="button" data-tab="intelligence">Research intelligence</button>
+      <button class="tab" type="button" data-tab="gaps">Candidate gaps</button>
+      <button class="tab" type="button" data-tab="graph">Knowledge graph</button>
+      <button class="tab" type="button" data-tab="evidence">Evidence</button>
+    </div>
+  </nav>
+
+  <main class="container profile-main">
+
+    <!-- ------------------------------------------------------ publications -->
+    <section class="tab-panel active" id="panel-publications">
+      <div class="panel-head">
+        <div>
+          <h2>Publications</h2>
+          <p class="panel-sub" id="papers-sub">Retrieved from the scholarly provider.</p>
+        </div>
+        <div class="panel-controls">
+          <div class="filter">
+            <label for="papers-limit">Show</label>
+            <select id="papers-limit">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="filter">
+            <label for="papers-year-from">From year</label>
+            <input class="year-input" id="papers-year-from" type="number" min="1800" max="2200" placeholder="any" />
+          </div>
+          <div class="filter">
+            <label for="papers-year-to">To year</label>
+            <input class="year-input" id="papers-year-to" type="number" min="1800" max="2200" placeholder="any" />
+          </div>
+          <button class="btn btn-sm" id="papers-apply" type="button">Apply</button>
+        </div>
+      </div>
+      <div id="papers-notice"></div>
+      <div id="papers-slot" class="paper-list" aria-live="polite"></div>
+    </section>
+
+    <!-- --------------------------------------------------- research intel -->
+    <section class="tab-panel" id="panel-intelligence">
+      <div class="panel-head">
+        <div>
+          <h2>Research intelligence</h2>
+          <p class="panel-sub">
+            Themes, methods, datasets, domains and recurring patterns extracted from the
+            abstracts of the selected publications. Every item lists the papers it came from.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="run-analysis" type="button">Run analysis</button>
+      </div>
+      <div id="analysis-slot" aria-live="polite"></div>
+    </section>
+
+    <!-- ------------------------------------------------------------- gaps -->
+    <section class="tab-panel" id="panel-gaps">
+      <div class="panel-head">
+        <div>
+          <h2>Candidate research gaps</h2>
+          <p class="panel-sub">
+            Derived by comparing the analysed papers with each other. These are candidates
+            drawn from this body of work, not a claim about the wider literature.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="run-gaps" type="button">Detect gaps</button>
+      </div>
+      <div id="gaps-slot" aria-live="polite"></div>
+    </section>
+
+    <!-- ------------------------------------------------------------ graph -->
+    <section class="tab-panel" id="panel-graph">
+      <div class="panel-head">
+        <div>
+          <h2>Knowledge graph</h2>
+          <p class="panel-sub" id="graph-sub">
+            Built from provider metadata: authorship, topics, domains and institutions.
+          </p>
+        </div>
+        <div class="panel-controls">
+          <div class="filter">
+            <label for="graph-source">Built from</label>
+            <select id="graph-source">
+              <option value="provider">Provider metadata</option>
+              <option value="analysis">Analysis</option>
+            </select>
+          </div>
+          <label class="checkbox-field" id="graph-analysis-field">
+            <input type="checkbox" id="graph-include-analysis" />
+            Include model-extracted methods and datasets
+          </label>
+          <label class="checkbox-field" id="graph-gaps-field" hidden>
+            <input type="checkbox" id="graph-include-gaps" />
+            Include candidate research gaps
+          </label>
+          <button class="btn btn-sm" id="reload-graph" type="button">Reload</button>
+        </div>
+      </div>
+      <div id="graph-notice"></div>
+      <div id="graph-legend" class="graph-legend" hidden></div>
+      <div id="graph-slot" class="graph-slot" aria-live="polite"></div>
+      <div id="graph-detail" class="graph-detail" hidden></div>
+    </section>
+
+    <!-- --------------------------------------------------------- evidence -->
+    <section class="tab-panel" id="panel-evidence">
+      <div class="panel-head">
+        <div>
+          <h2>Evidence</h2>
+          <p class="panel-sub">
+            Every generated claim on this page, with the papers and excerpts it was drawn from.
+            Claims that could not be traced to a retrieved paper were discarded before display.
+          </p>
+        </div>
+      </div>
+      <div id="evidence-slot" aria-live="polite"></div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>ResearchAI - An AI-powered research discovery assistant.</span>
+      <span>Prototype for academic use. Verify all results independently.</span>
+    </div>
+  </footer>
+
+  <script src="js/researchApi.js"></script>
+  <script src="js/researchUI.js"></script>
+  <script src="js/graphView.js"></script>
+  <script src="js/researcher.js"></script>
+</body>
+</html>

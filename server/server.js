@@ -1,40 +1,70 @@
+/**
+ * Entry point. Loads configuration, then starts the HTTP server.
+ * The application itself lives in app.js so it can be tested without a port.
+ */
 require('dotenv').config();
 
-const path = require('path');
-const express = require('express');
+const app = require('./app');
+const { listProviders } = require('./providers');
+const llmClient = require('./services/llmClient');
+const openRouter = require('./services/openRouter');
+const { agentStatus: paperAgentStatus } = require('./services/aiService');
 
-const researchRoutes = require('./routes/research');
-const aiRoutes = require('./routes/ai');
-
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
-
-app.use('/api/research', researchRoutes);
-app.use('/api/ai', aiRoutes);
-
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Unknown API routes should return JSON, not the HTML index page.
-app.use('/api', (_req, res) => res.status(404).json({ error: 'Unknown API endpoint.' }));
-
-const { agentStatus } = require('./services/aiService');
+/**
+ * Prints one agent as provider / model / availability.
+ * The key itself is never printed - only whether one was found.
+ */
+function printAgent({ agent, provider, model, configured }) {
+  console.log(`  ${agent}`);
+  console.log(`      ${provider}`);
+  console.log(`      ${model}`);
+  console.log(`      ${configured ? 'available' : 'unavailable'}`);
+}
 
 app.listen(PORT, () => {
   console.log(`ResearchAI running at http://localhost:${PORT}`);
 
-  // Show which agent runs on which model, so config mistakes are obvious.
-  console.log('\nAgents:');
-  agentStatus().forEach(({ agent, model, configured }) => {
-    console.log(`  ${agent.padEnd(22)} ${model.padEnd(16)} ${configured ? 'live' : 'Demo Mode (no key)'}`);
+  console.log('\nResearch providers:');
+  listProviders().forEach(({ source, name }) => {
+    console.log(`  ${name.padEnd(20)} ${source}`);
   });
 
-  if (!agentStatus().some((a) => a.configured)) {
-    console.log('\nAdd OPENAI_API_KEY to .env to enable real AI responses.');
+  console.log(`\nLanguage model gateway: ${openRouter.PROVIDER_NAME} (${openRouter.baseUrl()})`);
+
+  const researcherAgents = llmClient.agentStatus();
+  const paperAgents = paperAgentStatus();
+
+  console.log('\nResearcher agents (/api/researchers):');
+  researcherAgents.forEach(printAgent);
+
+  console.log('\nPaper agents (/api/ai):');
+  paperAgents.forEach(printAgent);
+
+  if (!openRouter.isConfigured()) {
+    console.log(
+      '\nNo OPENROUTER_API_KEY found.\n' +
+      'Researcher search, paper retrieval and the knowledge graph work without one.\n' +
+      'Analysis and gap detection return HTTP 503 until a key is set in .env.\n' +
+      'Get a key at https://openrouter.ai/keys'
+    );
   }
+
+  // A model id copied from an OpenAI setup will not resolve on OpenRouter,
+  // which addresses models as "<vendor>/<model>". Worth saying at boot rather
+  // than leaving it to a confusing 4xx on the first analysis request.
+  const unprefixed = [...researcherAgents, ...paperAgents]
+    .filter((entry) => openRouter.looksUnprefixed(entry.model))
+    .map((entry) => `${entry.agent} -> ${entry.model}`);
+
+  if (unprefixed.length) {
+    console.log(
+      `\nWarning: ${openRouter.PROVIDER_NAME} expects model ids as "<vendor>/<model>",\n` +
+      'for example "openai/gpt-4o-mini". These look unprefixed and will likely fail:\n' +
+      unprefixed.map((line) => `  ${line}`).join('\n')
+    );
+  }
+
   console.log('');
 });
