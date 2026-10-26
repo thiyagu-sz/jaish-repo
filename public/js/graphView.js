@@ -1,14 +1,14 @@
 /**
  * Knowledge graph rendering.
  *
- * Plain SVG with a small force simulation. No charting library: the page has no
- * build step, and a dependency would have to be fetched at runtime for a view
- * this simple.
+ * Plain SVG with a deterministic concentric layout. No charting library: the
+ * page has no build step, and a dependency would have to be fetched at runtime
+ * for a view this simple.
  *
- * Layout is a standard spring model - repulsion between every pair of nodes,
- * attraction along edges, and a weak pull to the centre - run for a fixed
- * number of ticks before the first paint, then continued on a short animation
- * so the graph settles visibly rather than jumping into place.
+ * A force simulation was tried first, but on a real profile (hundreds of
+ * papers, topics and institutions) it collapsed into one unreadable blob. Rings
+ * keep every node type in its own band, so the picture stays legible at any
+ * size and the same graph always draws the same way.
  */
 const GraphView = (() => {
   const NODE_STYLE = {
@@ -39,99 +39,19 @@ const GraphView = (() => {
       .replace(/'/g, '&#39;');
   }
 
-  /** Deterministic starting positions, so the same graph lays out the same way. */
-  function seedPositions(nodes, width, height) {
-    const centreX = width / 2;
-    const centreY = height / 2;
-
-    nodes.forEach((node, index) => {
-      if (node.type === 'Researcher') {
-        node.x = centreX;
-        node.y = centreY;
-        return;
-      }
-      // Golden-angle spiral spreads types evenly instead of clustering them.
-      const angle = index * 2.399963;
-      const radius = 40 + Math.sqrt(index + 1) * (Math.min(width, height) / 14);
-      node.x = centreX + Math.cos(angle) * radius;
-      node.y = centreY + Math.sin(angle) * radius;
-    });
-  }
-
-  function simulate(nodes, edges, width, height, ticks) {
-    const byId = new Map(nodes.map((node) => [node.id, node]));
-    const centreX = width / 2;
-    const centreY = height / 2;
-
-    for (let tick = 0; tick < ticks; tick += 1) {
-      // Cooling: large moves early, small adjustments later.
-      const alpha = 0.12 * (1 - tick / ticks);
-
-      for (let i = 0; i < nodes.length; i += 1) {
-        const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j += 1) {
-          const b = nodes[j];
-          let dx = b.x - a.x;
-          let dy = b.y - a.y;
-          let distanceSq = dx * dx + dy * dy;
-
-          if (distanceSq < 0.01) {
-            // Identical positions have no direction to push along.
-            dx = (Math.random() - 0.5) * 0.1;
-            dy = (Math.random() - 0.5) * 0.1;
-            distanceSq = dx * dx + dy * dy;
-          }
-
-          const distance = Math.sqrt(distanceSq);
-          const repulsion = (2600 * alpha) / distanceSq;
-          const fx = (dx / distance) * repulsion;
-          const fy = (dy / distance) * repulsion;
-
-          if (!a.fixed) { a.x -= fx; a.y -= fy; }
-          if (!b.fixed) { b.x += fx; b.y += fy; }
-        }
-      }
-
-      edges.forEach((edge) => {
-        const source = byId.get(edge.from);
-        const target = byId.get(edge.to);
-        if (!source || !target) return;
-
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-        const displacement = (distance - 95) * 0.02 * alpha * 10;
-        const fx = (dx / distance) * displacement;
-        const fy = (dy / distance) * displacement;
-
-        if (!source.fixed) { source.x += fx; source.y += fy; }
-        if (!target.fixed) { target.x -= fx; target.y -= fy; }
-      });
-
-      nodes.forEach((node) => {
-        if (node.fixed) return;
-        node.x += (centreX - node.x) * 0.012;
-        node.y += (centreY - node.y) * 0.012;
-
-        const radius = styleFor(node.type).radius;
-        node.x = Math.max(radius + 4, Math.min(width - radius - 4, node.x));
-        node.y = Math.max(radius + 4, Math.min(height - radius - 4, node.y));
-      });
-    }
-  }
-
   /**
-   * Concentric layout for the analysis graph.
+   * Concentric layout.
    *
    *   centre  Researcher
-   *   ring 1  Papers
+   *   ring 1  Papers, grouped by domain and topic
    *   ring 2  Topics, methods, datasets, domains
-   *   ring 3  Candidate research gaps
+   *   ring 3  Institutions and candidate research gaps
    *
    * An attribute is placed at the average angle of the papers it is attached
    * to, so a topic shared by two papers sits between them and its edges stay
-   * short. That makes the picture readable without a physics simulation, and
-   * it is deterministic: the same graph always draws the same way.
+   * short. A ring with more nodes than fit around it is split into parallel
+   * tracks inside its band, so a large profile spreads out instead of piling
+   * nodes on top of each other.
    */
   function radialLayout(nodes, edges, width, height) {
     const centreX = width / 2;
@@ -139,9 +59,12 @@ const GraphView = (() => {
 
     const RING_ORDER = {
       Paper: 1,
-      Topic: 2, Method: 2, Dataset: 2, Domain: 2, Institution: 2,
-      ResearchGap: 3
+      Topic: 2, Method: 2, Dataset: 2, Domain: 2,
+      Institution: 3, ResearchGap: 3
     };
+
+    // Each ring owns a band of radii; its tracks are spread across the band.
+    const RING_BAND = { 1: [0.24, 0.44], 2: [0.56, 0.82], 3: [0.92, 1] };
 
     // Rings are elliptical rather than circular. A laptop or projector canvas
     // is much wider than it is tall, and a circle sized to the short side
@@ -151,29 +74,77 @@ const GraphView = (() => {
     const radiusX = Math.max(110, width / 2 - marginX);
     const radiusY = Math.max(80, height / 2 - marginY);
 
-    const RING_FACTOR = { 1: 0.34, 2: 0.70, 3: 1 };
-
     const place = (node, angle, factor) => {
       node.x = centreX + Math.cos(angle) * radiusX * factor;
       node.y = centreY + Math.sin(angle) * radiusY * factor;
     };
 
+    /**
+     * How many tracks a ring needs: enough that neighbours on one track do not
+     * touch. Even a ring that fits gets two once it is busy, so neighbouring
+     * labels sit at different distances from the centre.
+     */
+    function trackCount(ring, members) {
+      const [low, high] = RING_BAND[ring];
+      const factor = (low + high) / 2;
+      const a = radiusX * factor;
+      const b = radiusY * factor;
+      const perimeter = Math.PI * 2 * Math.sqrt((a * a + b * b) / 2);
+      const widest = Math.max(...members.map((node) => styleFor(node.type).radius));
+      const capacity = Math.max(1, Math.floor(perimeter / (widest * 2 + 8)));
+      const needed = Math.ceil(members.length / capacity);
+      return Math.min(4, Math.max(needed, members.length > 8 ? 2 : 1));
+    }
+
+    /** Radius factor of track `track` out of `tracks` on a ring. */
+    function trackFactor(ring, track, tracks) {
+      const [low, high] = RING_BAND[ring];
+      const mid = (low + high) / 2;
+      if (tracks < 2) return ring === 3 ? high : mid;
+      // Two tracks only need a slight offset; four use the whole band.
+      const half = ((high - low) / 2) * Math.min(1, (tracks - 1) / 3);
+      return mid - half + (2 * half * track) / (tracks - 1);
+    }
+
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const neighbours = new Map();
+    edges.forEach((edge) => {
+      const from = byId.get(edge.from);
+      const to = byId.get(edge.to);
+      if (!from || !to) return;
+      (neighbours.get(from.id) || neighbours.set(from.id, []).get(from.id)).push(to);
+      (neighbours.get(to.id) || neighbours.set(to.id, []).get(to.id)).push(from);
+    });
+
     const researcher = nodes.find((node) => node.type === 'Researcher');
     if (researcher) {
       researcher.x = centreX;
       researcher.y = centreY;
-      researcher.fixed = true;
     }
 
-    // Ring 1: papers, spread evenly around the researcher.
-    const papers = nodes.filter((node) => RING_ORDER[node.type] === 1);
+    // Ring 1: papers, spread evenly around the researcher. Papers sharing a
+    // domain and topic sit next to each other, so the edges out to ring 2 fan
+    // out in tidy bundles instead of criss-crossing the picture.
+    const groupKey = (node) => {
+      const linked = neighbours.get(node.id) || [];
+      const first = (type) => (linked.find((other) => other.type === type) || {}).label || '￿';
+      return `${first('Domain')}\u0000${first('Topic')}`;
+    };
+
+    const papers = nodes
+      .filter((node) => RING_ORDER[node.type] === 1)
+      .map((node, index) => ({ node, index, key: groupKey(node) }))
+      .sort((a, b) => a.key.localeCompare(b.key) || a.index - b.index)
+      .map((entry) => entry.node);
+
     const paperAngle = new Map();
+    const paperTracks = papers.length ? trackCount(1, papers) : 1;
 
     papers.forEach((node, index) => {
       // Start at -90deg so the first paper sits at the top rather than the right.
       const angle = -Math.PI / 2 + (index / Math.max(papers.length, 1)) * Math.PI * 2;
       paperAngle.set(node.id, angle);
-      place(node, angle, RING_FACTOR[1]);
+      place(node, angle, trackFactor(1, index % paperTracks, paperTracks));
     });
 
     /** Mean of angles, taken on the unit circle so 350deg and 10deg average to 0. */
@@ -277,23 +248,21 @@ const GraphView = (() => {
         taken.sort((a, b) => a - b);
       });
 
-      // On a busy ring, alternate the radius slightly. Two neighbours then sit
-      // at different distances from the centre, which separates their labels
-      // without moving either node off its ring.
-      const stagger = members.length > 8 ? 0.055 : 0;
+      // Neighbours alternate between tracks, so two adjacent nodes sit at
+      // different distances from the centre and their labels separate.
+      const tracks = trackCount(ring, members);
 
       [...anchored, ...floating]
-        .sort((a, b) => a.angle - b.angle)
+        .sort((a, b) => wrap(a.angle) - wrap(b.angle))
         .forEach((entry, index) => {
-          const offset = stagger ? (index % 2 === 0 ? -stagger : stagger) : 0;
-          place(entry.node, entry.angle, RING_FACTOR[ring] + offset);
+          place(entry.node, entry.angle, trackFactor(ring, index % tracks, tracks));
         });
     });
 
     // Anything unplaced (an unexpected type) goes on the outer ring.
     nodes.forEach((node, index) => {
       if (node.x != null && node.y != null) return;
-      place(node, -Math.PI / 2 + index * 2.399963, RING_FACTOR[3]);
+      place(node, -Math.PI / 2 + index * 2.399963, RING_BAND[3][1]);
     });
 
     // Keep every node inside the canvas.
@@ -408,34 +377,26 @@ const GraphView = (() => {
    * empty space down each side. Height is derived from width and clamped so
    * the graph never grows taller than a screen.
    */
-  function canvasSize(container, graph, layout) {
+  function canvasSize(container, graph) {
     const width = Math.max(container.clientWidth || 900, 320);
-
-    if (layout === 'radial') {
-      const ideal = width * (width < 620 ? 0.92 : 0.54);
-      const room = Math.max(360, Math.min(graph.nodes.length * 26 + 220, 760));
-      return { width, height: Math.round(Math.max(420, Math.min(ideal, room))) };
-    }
-
-    return { width, height: Math.min(Math.max(460, graph.nodes.length * 11), 700) };
+    const count = graph.nodes.length;
+    // A large profile gets a taller canvas so its outer rings have room.
+    const ideal = width * (width < 620 ? 0.92 : count > 80 ? 0.64 : 0.54);
+    const room = Math.max(360, Math.min(count * 26 + 220, 820));
+    return { width, height: Math.round(Math.max(420, Math.min(ideal, room))) };
   }
 
   /** Renders the SVG. Deterministic: the same graph at the same size agrees. */
-  function draw(container, graph, { onSelect, layout = 'force' } = {}) {
-    const { width, height } = canvasSize(container, graph, layout);
+  function draw(container, graph, { onSelect } = {}) {
+    const { width, height } = canvasSize(container, graph);
     const centreX = width / 2;
     const centreY = height / 2;
 
     // Work on copies so a re-render never inherits stale coordinates.
-    const nodes = graph.nodes.map((node) => ({ ...node, fixed: node.type === 'Researcher' }));
+    const nodes = graph.nodes.map((node) => ({ ...node, x: null, y: null }));
     const edges = graph.edges.map((edge) => ({ ...edge }));
 
-    if (layout === 'radial') {
-      radialLayout(nodes, edges, width, height);
-    } else {
-      seedPositions(nodes, width, height);
-      simulate(nodes, edges, width, height, 160);
-    }
+    radialLayout(nodes, edges, width, height);
 
     const byId = new Map(nodes.map((node) => [node.id, node]));
 
@@ -470,9 +431,17 @@ const GraphView = (() => {
     };
 
     // Place labels highest priority first, skipping any that would collide
-    // with one already placed. A skipped label is not lost: the full name is
-    // on the node tooltip and in the detail panel when the node is clicked.
-    const placedBoxes = [];
+    // with a node or a label already placed. A skipped label is not lost: the
+    // full name is on the node tooltip and in the detail panel when clicked.
+    const placedBoxes = nodes.map((node) => {
+      const radius = radiusOf(node);
+      return {
+        left: node.x - radius,
+        right: node.x + radius,
+        top: node.y - radius,
+        bottom: node.y + radius
+      };
+    });
     const labels = new Map();
 
     [...nodes]
@@ -516,7 +485,7 @@ const GraphView = (() => {
       .join('');
 
     container.innerHTML = `
-      <svg class="graph-svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
+      <svg class="graph-svg${edges.length > 120 ? ' graph-svg-dense' : ''}" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
            preserveAspectRatio="xMidYMid meet"
            role="img" aria-label="Knowledge graph of the researcher, their publications, topics, domains and candidate research gaps">
         <g class="graph-edges">${edgeMarkup}</g>
@@ -590,7 +559,7 @@ const GraphView = (() => {
    *
    * @param {HTMLElement} container
    * @param {{nodes: Array, edges: Array}} graph
-   * @param {{onSelect?: function, layout?: 'force'|'radial'}} options
+   * @param {{onSelect?: function}} options
    */
   function render(container, graph, options = {}) {
     const result = draw(container, graph, options);

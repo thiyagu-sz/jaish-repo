@@ -933,6 +933,8 @@ h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 12px; }
 
 .graph-edge { stroke: var(--border-strong); stroke-width: 1; }
 .graph-edge-llm { stroke: var(--purple); stroke-dasharray: 3 3; stroke-opacity: 0.55; }
+/* On a large profile the edges are context, not content: fade them back. */
+.graph-svg-dense .graph-edge:not(.graph-edge-support) { stroke-opacity: 0.3; }
 
 .graph-node { cursor: pointer; }
 .graph-node circle { transition: r 0.12s ease, fill-opacity 0.12s ease; }

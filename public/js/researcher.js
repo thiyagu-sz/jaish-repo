@@ -425,12 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       slots.graphLegend.hidden = false;
       GraphView.renderLegend(slots.graphLegend, graph);
-      GraphView.render(slots.graph, graph, {
-        onSelect: showNodeDetail,
-        // The analysis graph is small and hierarchical, so concentric rings
-        // read better than a force layout.
-        layout: isAnalysis ? 'radial' : 'force'
-      });
+      GraphView.render(slots.graph, graph, { onSelect: showNodeDetail });
     } catch (error) {
       ResearchUI.renderNotice(slots.graphNotice, '');
       ResearchUI.renderError(slots.graph, error, { retryLabel: 'Retry' });
